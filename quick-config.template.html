@@ -1,0 +1,504 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Zeus 3X-UI Panel | Railway Cloud Proxy</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+    <style>
+        :root {
+            --bg-base: #090d16;
+            --bg-card: rgba(18, 24, 38, 0.75);
+            --bg-card-hover: rgba(26, 35, 56, 0.85);
+            --border-subtle: rgba(255, 255, 255, 0.08);
+            --border-accent: rgba(56, 189, 248, 0.3);
+            --text-primary: #f8fafc;
+            --text-secondary: #94a3b8;
+            --text-muted: #64748b;
+            --accent-blue: #38bdf8;
+            --accent-cyan: #06b6d4;
+            --accent-emerald: #10b981;
+            --accent-purple: #a855f7;
+            --accent-amber: #f59e0b;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+            background-color: var(--bg-base);
+            background-image: 
+                radial-gradient(at 0% 0%, rgba(56, 189, 248, 0.12) 0px, transparent 50%),
+                radial-gradient(at 100% 100%, rgba(168, 85, 247, 0.12) 0px, transparent 50%),
+                radial-gradient(at 50% 50%, rgba(16, 185, 129, 0.05) 0px, transparent 50%);
+            background-attachment: fixed;
+            color: var(--text-primary);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 2.5rem 1rem 4rem;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 900px;
+        }
+
+        /* Header */
+        .header {
+            text-align: center;
+            margin-bottom: 2.5rem;
+        }
+
+        .badge-status {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.35rem 0.85rem;
+            border-radius: 9999px;
+            background: rgba(16, 185, 129, 0.12);
+            border: 1px solid rgba(16, 185, 129, 0.3);
+            color: var(--accent-emerald);
+            font-size: 0.825rem;
+            font-weight: 600;
+            margin-bottom: 1rem;
+        }
+
+        .pulse-dot {
+            width: 8px;
+            height: 8px;
+            background-color: var(--accent-emerald);
+            border-radius: 50%;
+            box-shadow: 0 0 12px var(--accent-emerald);
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(0.95); opacity: 0.8; }
+            50% { transform: scale(1.2); opacity: 1; }
+            100% { transform: scale(0.95); opacity: 0.8; }
+        }
+
+        .header h1 {
+            font-size: 2.25rem;
+            font-weight: 800;
+            letter-spacing: -0.03em;
+            background: linear-gradient(135deg, #ffffff 0%, #cbd5e1 50%, #38bdf8 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 0.5rem;
+        }
+
+        .header p {
+            color: var(--text-secondary);
+            font-size: 1rem;
+        }
+
+        /* Top Action Bar */
+        .action-bar {
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+            margin-bottom: 2rem;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.65rem 1.25rem;
+            border-radius: 10px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            text-decoration: none;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            border: 1px solid transparent;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
+            color: white;
+            box-shadow: 0 4px 15px rgba(2, 132, 199, 0.35);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 6px 20px rgba(2, 132, 199, 0.5);
+        }
+
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.05);
+            border-color: var(--border-subtle);
+            color: var(--text-primary);
+        }
+
+        .btn-secondary:hover {
+            background: rgba(255, 255, 255, 0.1);
+            border-color: rgba(255, 255, 255, 0.2);
+        }
+
+        /* Protocol Cards */
+        .protocol-grid {
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+            margin-bottom: 2.5rem;
+        }
+
+        .card {
+            background: var(--bg-card);
+            backdrop-filter: blur(16px);
+            border: 1px solid var(--border-subtle);
+            border-radius: 16px;
+            padding: 1.5rem;
+            transition: all 0.25s ease;
+        }
+
+        .card:hover {
+            border-color: var(--border-accent);
+            background: var(--bg-card-hover);
+        }
+
+        .card-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+        }
+
+        .protocol-title {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .tag-proto {
+            padding: 0.25rem 0.65rem;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+        }
+
+        .tag-vless { background: rgba(56, 189, 248, 0.2); color: var(--accent-blue); border: 1px solid rgba(56, 189, 248, 0.4); }
+        .tag-vmess { background: rgba(168, 85, 247, 0.2); color: var(--accent-purple); border: 1px solid rgba(168, 85, 247, 0.4); }
+        .tag-trojan { background: rgba(245, 158, 11, 0.2); color: var(--accent-amber); border: 1px solid rgba(245, 158, 11, 0.4); }
+
+        .protocol-title h3 {
+            font-size: 1.15rem;
+            font-weight: 700;
+        }
+
+        .card-actions {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .btn-copy {
+            background: rgba(56, 189, 248, 0.1);
+            color: var(--accent-blue);
+            border: 1px solid rgba(56, 189, 248, 0.25);
+            padding: 0.4rem 0.85rem;
+            border-radius: 8px;
+            font-size: 0.825rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-copy:hover {
+            background: rgba(56, 189, 248, 0.2);
+        }
+
+        .btn-qr {
+            background: rgba(255, 255, 255, 0.05);
+            color: var(--text-secondary);
+            border: 1px solid var(--border-subtle);
+            padding: 0.4rem 0.85rem;
+            border-radius: 8px;
+            font-size: 0.825rem;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        .code-box {
+            background: rgba(9, 13, 22, 0.8);
+            border: 1px solid var(--border-subtle);
+            border-radius: 10px;
+            padding: 0.85rem 1rem;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.825rem;
+            color: #cbd5e1;
+            overflow-x: auto;
+            white-space: nowrap;
+            margin-bottom: 0.85rem;
+            user-select: all;
+        }
+
+        .meta-chips {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            font-size: 0.775rem;
+            color: var(--text-muted);
+        }
+
+        .chip {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            padding: 0.2rem 0.5rem;
+            border-radius: 6px;
+        }
+
+        .chip strong {
+            color: var(--text-secondary);
+        }
+
+        /* QR Modal */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.75);
+            backdrop-filter: blur(8px);
+            z-index: 999;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal-content {
+            background: #111827;
+            border: 1px solid var(--border-accent);
+            border-radius: 20px;
+            padding: 2rem;
+            text-align: center;
+            max-width: 360px;
+            width: 90%;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.8);
+        }
+
+        .modal-content h4 {
+            margin-bottom: 1.25rem;
+            font-size: 1.1rem;
+        }
+
+        .qr-wrapper {
+            background: white;
+            padding: 1rem;
+            border-radius: 12px;
+            display: inline-block;
+            margin-bottom: 1.25rem;
+        }
+
+        /* Tips & Docs */
+        .info-card {
+            background: rgba(30, 41, 59, 0.5);
+            border: 1px solid var(--border-subtle);
+            border-radius: 14px;
+            padding: 1.25rem;
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+            line-height: 1.6;
+        }
+
+        .info-card h4 {
+            color: var(--text-primary);
+            margin-bottom: 0.5rem;
+            font-size: 0.95rem;
+        }
+
+        .toast {
+            position: fixed;
+            bottom: 2rem;
+            background: #0284c7;
+            color: white;
+            padding: 0.75rem 1.5rem;
+            border-radius: 8px;
+            font-size: 0.875rem;
+            font-weight: 600;
+            box-shadow: 0 10px 25px rgba(2, 132, 199, 0.4);
+            transform: translateY(100px);
+            opacity: 0;
+            transition: all 0.3s ease;
+            z-index: 1000;
+        }
+
+        .toast.show {
+            transform: translateY(0);
+            opacity: 1;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header class="header">
+            <div class="badge-status">
+                <span class="pulse-dot"></span>
+                <span>Active & Encrypted (TLS Port 443)</span>
+            </div>
+            <h1>Zeus 3X-UI Cloud Proxy</h1>
+            <p>High-Speed Anti-Filter Proxy Running 24/7 on Railway PaaS</p>
+        </header>
+
+        <!-- Action Bar -->
+        <div class="action-bar">
+            <a href="${PANEL_URL}" class="btn btn-primary">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+                Open 3x-ui Admin Panel
+            </a>
+            <a href="${SUB_URL}" class="btn btn-secondary" onclick="copyText('${SUB_URL}'); return false;">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                Copy Subscription Link
+            </a>
+        </div>
+
+        <!-- Protocol Configurations List -->
+        <div class="protocol-grid">
+            <!-- VLESS WS -->
+            <div class="card">
+                <div class="card-top">
+                    <div class="protocol-title">
+                        <span class="tag-proto tag-vless">VLESS</span>
+                        <h3>VLESS + WebSocket + TLS</h3>
+                    </div>
+                    <div class="card-actions">
+                        <button class="btn-copy" onclick="copyText('${VLESS_CONFIG}')">Copy Link</button>
+                        <button class="btn-qr" onclick="showQR('VLESS WebSocket', '${VLESS_CONFIG}')">QR Code</button>
+                    </div>
+                </div>
+                <div class="code-box">${VLESS_CONFIG}</div>
+                <div class="meta-chips">
+                    <div class="chip">Host: <strong>${PUBLIC_DOMAIN}</strong></div>
+                    <div class="chip">Port: <strong>443</strong></div>
+                    <div class="chip">Transport: <strong>WebSocket</strong></div>
+                    <div class="chip">Path: <strong>${VLESS_PATH}</strong></div>
+                    <div class="chip">Security: <strong>TLS / WSS</strong></div>
+                </div>
+            </div>
+
+            <!-- VMess WS -->
+            <div class="card">
+                <div class="card-top">
+                    <div class="protocol-title">
+                        <span class="tag-proto tag-vmess">VMESS</span>
+                        <h3>VMess + WebSocket + TLS</h3>
+                    </div>
+                    <div class="card-actions">
+                        <button class="btn-copy" onclick="copyText('${VMESS_CONFIG}')">Copy Link</button>
+                        <button class="btn-qr" onclick="showQR('VMess WebSocket', '${VMESS_CONFIG}')">QR Code</button>
+                    </div>
+                </div>
+                <div class="code-box">${VMESS_CONFIG}</div>
+                <div class="meta-chips">
+                    <div class="chip">Host: <strong>${PUBLIC_DOMAIN}</strong></div>
+                    <div class="chip">Port: <strong>443</strong></div>
+                    <div class="chip">Transport: <strong>WebSocket</strong></div>
+                    <div class="chip">Path: <strong>${VMESS_PATH}</strong></div>
+                    <div class="chip">Security: <strong>TLS / WSS</strong></div>
+                </div>
+            </div>
+
+            <!-- Trojan WS -->
+            <div class="card">
+                <div class="card-top">
+                    <div class="protocol-title">
+                        <span class="tag-proto tag-trojan">TROJAN</span>
+                        <h3>Trojan + WebSocket + TLS</h3>
+                    </div>
+                    <div class="card-actions">
+                        <button class="btn-copy" onclick="copyText('${TROJAN_CONFIG}')">Copy Link</button>
+                        <button class="btn-qr" onclick="showQR('Trojan WebSocket', '${TROJAN_CONFIG}')">QR Code</button>
+                    </div>
+                </div>
+                <div class="code-box">${TROJAN_CONFIG}</div>
+                <div class="meta-chips">
+                    <div class="chip">Host: <strong>${PUBLIC_DOMAIN}</strong></div>
+                    <div class="chip">Port: <strong>443</strong></div>
+                    <div class="chip">Transport: <strong>WebSocket</strong></div>
+                    <div class="chip">Path: <strong>${TROJAN_PATH}</strong></div>
+                    <div class="chip">Security: <strong>TLS / WSS</strong></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Info / Tips -->
+        <div class="info-card">
+            <h4>💡 How to Connect from Iran (MCI, Irancell, Rightel, Fixed):</h4>
+            <p>1. Copy any config above and import it via clipboard into <strong>v2rayNG</strong> (Android), <strong>Streisand / FoXray</strong> (iOS), or <strong>v2rayN / Nekoray</strong> (PC).</p>
+            <p>2. <strong>Cloudflare Clean IP (Optional)</strong>: If Railway's direct IP is throttled on your network, replace the configuration address (host) with a working Cloudflare Clean IP while keeping the SNI / Host header set to <code>${PUBLIC_DOMAIN}</code>.</p>
+        </div>
+    </div>
+
+    <!-- QR Modal -->
+    <div id="qrModal" class="modal" onclick="closeQR(event)">
+        <div class="modal-content" onclick="event.stopPropagation()">
+            <h4 id="qrTitle">Configuration QR</h4>
+            <div class="qr-wrapper" id="qrContainer"></div>
+            <div>
+                <button class="btn btn-secondary" onclick="closeQR()">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="toast" class="toast">Link copied to clipboard!</div>
+
+    <script>
+        function copyText(text) {
+            navigator.clipboard.writeText(text).then(() => {
+                showToast("Copied to clipboard!");
+            }).catch(() => {
+                const el = document.createElement('textarea');
+                el.value = text;
+                document.body.appendChild(el);
+                el.select();
+                document.execCommand('copy');
+                document.body.removeChild(el);
+                showToast("Copied to clipboard!");
+            });
+        }
+
+        function showToast(msg) {
+            const toast = document.getElementById('toast');
+            toast.textContent = msg;
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), 2500);
+        }
+
+        function showQR(title, text) {
+            document.getElementById('qrTitle').textContent = title;
+            const container = document.getElementById('qrContainer');
+            container.innerHTML = '';
+            new QRCode(container, {
+                text: text,
+                width: 220,
+                height: 220,
+                colorDark: "#000000",
+                colorLight: "#ffffff",
+                correctLevel: QRCode.CorrectLevel.M
+            });
+            document.getElementById('qrModal').style.display = 'flex';
+        }
+
+        function closeQR() {
+            document.getElementById('qrModal').style.display = 'none';
+        }
+    </script>
+</body>
+</html>

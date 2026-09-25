@@ -1,0 +1,10 @@
+# Database & Certs (Local testing only)
+*.db
+*.db-journal
+*.log
+/db/
+/cert/
+
+# Operating System
+.DS_Store
+Thumbs.db

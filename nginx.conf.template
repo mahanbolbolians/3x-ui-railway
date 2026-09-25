@@ -1,0 +1,160 @@
+worker_processes auto;
+error_log /var/log/nginx/error.log warn;
+pid /var/run/nginx.pid;
+
+events {
+    worker_connections 4096;
+    multi_accept on;
+}
+
+http {
+    include /etc/nginx/mime.types;
+    default_type application/octet-stream;
+
+    log_format main '$remote_addr - $remote_user [$time_local] "$request" '
+                    '$status $body_bytes_sent "$http_referer" '
+                    '"$http_user_agent" "$http_x_forwarded_for"';
+
+    access_log /var/log/nginx/access.log main;
+
+    sendfile on;
+    tcp_nopush on;
+    tcp_nodelay on;
+    keepalive_timeout 300s;
+    types_hash_max_size 2048;
+    client_max_body_size 128m;
+
+    # Map WebSocket upgrade headers
+    map $http_upgrade $connection_upgrade {
+        default upgrade;
+        '' close;
+    }
+
+    server {
+        listen ${PORT} default_server;
+        listen [::]:${PORT} default_server;
+        server_name _;
+
+        # -------------------------------------------------------------
+        # 1. VLESS WebSocket Inbound (Internal Port 10001)
+        # -------------------------------------------------------------
+        location ${VLESS_PATH} {
+            proxy_redirect off;
+            proxy_pass http://127.0.0.1:10001;
+            proxy_http_version 1.1;
+            proxy_set_header Upgrade $http_upgrade;
+            proxy_set_header Connection "upgrade";
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_read_timeout 86400s;
+            proxy_send_timeout 86400s;
+            proxy_buffering off;
+        }
+
+        # -------------------------------------------------------------
+        # 2. VMess WebSocket Inbound (Internal Port 10002)
+        # -------------------------------------------------------------
+        location ${VMESS_PATH} {
+            proxy_redirect off;
+            proxy_pass http://127.0.0.1:10002;
+            proxy_http_version 1.1;
+            proxy_set_header Upgrade $http_upgrade;
+            proxy_set_header Connection "upgrade";
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_read_timeout 86400s;
+            proxy_send_timeout 86400s;
+            proxy_buffering off;
+        }
+
+        # -------------------------------------------------------------
+        # 3. Trojan WebSocket Inbound (Internal Port 10003)
+        # -------------------------------------------------------------
+        location ${TROJAN_PATH} {
+            proxy_redirect off;
+            proxy_pass http://127.0.0.1:10003;
+            proxy_http_version 1.1;
+            proxy_set_header Upgrade $http_upgrade;
+            proxy_set_header Connection "upgrade";
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_read_timeout 86400s;
+            proxy_send_timeout 86400s;
+            proxy_buffering off;
+        }
+
+        # -------------------------------------------------------------
+        # 4. Shadowsocks WebSocket Inbound (Internal Port 10004)
+        # -------------------------------------------------------------
+        location ${SS_PATH} {
+            proxy_redirect off;
+            proxy_pass http://127.0.0.1:10004;
+            proxy_http_version 1.1;
+            proxy_set_header Upgrade $http_upgrade;
+            proxy_set_header Connection "upgrade";
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_read_timeout 86400s;
+            proxy_send_timeout 86400s;
+            proxy_buffering off;
+        }
+
+        # -------------------------------------------------------------
+        # 5. Fallback/Generic WebSocket Proxy (matches /ws/* or /ray/*)
+        # -------------------------------------------------------------
+        location ~ ^/(ws|ray|proxy)/(.*)$ {
+            proxy_redirect off;
+            proxy_pass http://127.0.0.1:10001;
+            proxy_http_version 1.1;
+            proxy_set_header Upgrade $http_upgrade;
+            proxy_set_header Connection "upgrade";
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_read_timeout 86400s;
+            proxy_send_timeout 86400s;
+            proxy_buffering off;
+        }
+
+        # -------------------------------------------------------------
+        # 6. Quick Configs Helper Portal (HTML & QR Codes)
+        # -------------------------------------------------------------
+        location /quick-config {
+            alias /var/www/quick-config.html;
+            default_type text/html;
+            add_header Cache-Control "no-store, no-cache, must-revalidate";
+        }
+
+        # -------------------------------------------------------------
+        # 7. 3x-ui Subscription Endpoints (/sub/...)
+        # -------------------------------------------------------------
+        location /sub {
+            proxy_pass http://127.0.0.1:2053;
+            proxy_http_version 1.1;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto https;
+        }
+
+        # -------------------------------------------------------------
+        # 8. 3x-ui Web Admin Panel (All Other Requests)
+        # -------------------------------------------------------------
+        location / {
+            proxy_pass http://127.0.0.1:2053;
+            proxy_http_version 1.1;
+            proxy_set_header Upgrade $http_upgrade;
+            proxy_set_header Connection $connection_upgrade;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto https;
+            proxy_read_timeout 86400s;
+            proxy_send_timeout 86400s;
+        }
+    }
+}
