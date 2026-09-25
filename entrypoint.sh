@@ -1,19 +1,27 @@
 #!/bin/bash
-set -e
 
 echo "============================================================"
 echo "⚡ Starting Zeus 3X-UI Cloud Proxy Engine on Railway..."
 echo "============================================================"
 
-# 1. Environment & Default Port Configuration
+# 1. Environment & Port Configuration
 export PORT="${PORT:-8080}"
-export XUI_PORT="${XUI_PORT:-2053}"
+
+# Prevent port collision: If Railway assigns PORT=2053 to Nginx, run 3x-ui on internal 20530
+if [ "$PORT" = "2053" ]; then
+    export INTERNAL_XUI_PORT="20530"
+else
+    export INTERNAL_XUI_PORT="${XUI_PORT:-2053}"
+fi
+
 export XUI_USERNAME="${XUI_USERNAME:-admin}"
 export XUI_PASSWORD="${XUI_PASSWORD:-admin}"
 export XUI_BASE_PATH="${XUI_BASE_PATH:-/}"
 export XUI_ENABLE_FAIL2BAN="false"
 export XUI_IN_DOCKER="true"
 export XUI_MAIN_FOLDER="/app"
+
+mkdir -p /run/nginx /var/log/nginx /var/lib/nginx/tmp /var/www /etc/x-ui
 
 # Normalize base path to start and end with / if not empty
 if [ "$XUI_BASE_PATH" != "/" ]; then
@@ -50,17 +58,15 @@ fi
 
 export VLESS_UUID VMESS_UUID TROJAN_PASSWORD
 
-echo "🔧 Configuring Nginx on external port ${PORT}..."
-# Substitute ONLY specific environment variables so Nginx's internal $variables remain intact!
-envsubst '$PORT $VLESS_PATH $VMESS_PATH $TROJAN_PATH $SS_PATH' < /etc/nginx/nginx.conf.template > /etc/nginx/nginx.conf
+echo "🔧 Configuring Nginx on external port ${PORT} (3x-ui upstream: ${INTERNAL_XUI_PORT})..."
+envsubst '$PORT $INTERNAL_XUI_PORT $VLESS_PATH $VMESS_PATH $TROJAN_PATH $SS_PATH' < /etc/nginx/nginx.conf.template > /etc/nginx/nginx.conf
 
 # Verify Nginx Configuration
 nginx -t
 
 # 2. Configure 3x-ui Database / Settings via CLI
-echo "🔧 Configuring 3x-ui panel settings (Port: ${XUI_PORT}, BasePath: ${XUI_BASE_PATH})..."
-mkdir -p /etc/x-ui
-/app/x-ui setting -port "$XUI_PORT" -username "$XUI_USERNAME" -password "$XUI_PASSWORD" -webBasePath "$XUI_BASE_PATH" || true
+echo "🔧 Configuring 3x-ui panel settings (Internal Port: ${INTERNAL_XUI_PORT}, BasePath: ${XUI_BASE_PATH})..."
+/app/x-ui setting -port "$INTERNAL_XUI_PORT" -username "$XUI_USERNAME" -password "$XUI_PASSWORD" -webBasePath "$XUI_BASE_PATH" || true
 
 # 3. Start 3x-ui in Background
 echo "🚀 Launching 3x-ui core..."
@@ -71,34 +77,38 @@ XUI_PID=$!
 echo "⏳ Waiting for 3x-ui web daemon to initialize..."
 MAX_WAIT=20
 WAIT_COUNT=0
-while ! curl -s -f "http://127.0.0.1:${XUI_PORT}${XUI_BASE_PATH}" >/dev/null 2>&1; do
+while ! curl -s -f "http://127.0.0.1:${INTERNAL_XUI_PORT}${XUI_BASE_PATH}" >/dev/null 2>&1; do
     sleep 1
     WAIT_COUNT=$((WAIT_COUNT + 1))
     if [ $WAIT_COUNT -ge $MAX_WAIT ]; then
-        echo "⚠️ Warning: 3x-ui web port took longer than expected to answer. Continuing..."
+        echo "⚠️ 3x-ui took longer than expected to answer. Continuing startup..."
         break
     fi
 done
 
 # 4. Check & Seed Inbounds via 3x-ui Internal API
 COOKIE_FILE="/tmp/xui_cookie.txt"
-echo "🔑 Authenticating with 3x-ui API..."
-LOGIN_RESP=$(curl -s -c "$COOKIE_FILE" -X POST "http://127.0.0.1:${XUI_PORT}${XUI_BASE_PATH}login" \
+LOGIN_PATH="${XUI_BASE_PATH}login"
+[[ "$LOGIN_PATH" == "//login" ]] && LOGIN_PATH="/login"
+
+curl -s -c "$COOKIE_FILE" -X POST "http://127.0.0.1:${INTERNAL_XUI_PORT}${LOGIN_PATH}" \
     -H "Content-Type: application/x-www-form-urlencoded" \
-    -d "username=${XUI_USERNAME}&password=${XUI_PASSWORD}")
+    -d "username=${XUI_USERNAME}&password=${XUI_PASSWORD}" >/dev/null 2>&1 || true
 
-echo "📋 Checking existing inbounds..."
-INBOUNDS_RESP=$(curl -s -b "$COOKIE_FILE" -X GET "http://127.0.0.1:${XUI_PORT}${XUI_BASE_PATH}panel/api/inbounds/list")
+API_LIST_PATH="${XUI_BASE_PATH}panel/api/inbounds/list"
+[[ "$API_LIST_PATH" == "//panel/api/inbounds/list" ]] && API_LIST_PATH="/panel/api/inbounds/list"
 
-# Check if inbounds are empty or uninitialized
+INBOUNDS_RESP=$(curl -s -b "$COOKIE_FILE" -X GET "http://127.0.0.1:${INTERNAL_XUI_PORT}${API_LIST_PATH}" 2>/dev/null || echo "{}")
 INBOUND_COUNT=$(echo "$INBOUNDS_RESP" | jq -r '.obj | length' 2>/dev/null || echo "0")
+
+API_ADD_PATH="${XUI_BASE_PATH}panel/api/inbounds/add"
+[[ "$API_ADD_PATH" == "//panel/api/inbounds/add" ]] && API_ADD_PATH="/panel/api/inbounds/add"
 
 if [ "$INBOUND_COUNT" = "0" ] || [ -z "$INBOUND_COUNT" ] || [ "$INBOUND_COUNT" = "null" ]; then
     echo "✨ Initializing default high-performance WebSocket inbounds..."
 
     # Inbound 1: VLESS + WebSocket
-    echo "   ➕ Adding VLESS WebSocket Inbound (Port: 10001, Path: ${VLESS_PATH})..."
-    curl -s -b "$COOKIE_FILE" -X POST "http://127.0.0.1:${XUI_PORT}${XUI_BASE_PATH}panel/api/inbounds/add" \
+    curl -s -b "$COOKIE_FILE" -X POST "http://127.0.0.1:${INTERNAL_XUI_PORT}${API_ADD_PATH}" \
         -H "Content-Type: application/json" \
         -d "{
             \"up\": 0,
@@ -116,8 +126,7 @@ if [ "$INBOUND_COUNT" = "0" ] || [ -z "$INBOUND_COUNT" ] || [ "$INBOUND_COUNT" =
         }" >/dev/null 2>&1 || true
 
     # Inbound 2: VMess + WebSocket
-    echo "   ➕ Adding VMess WebSocket Inbound (Port: 10002, Path: ${VMESS_PATH})..."
-    curl -s -b "$COOKIE_FILE" -X POST "http://127.0.0.1:${XUI_PORT}${XUI_BASE_PATH}panel/api/inbounds/add" \
+    curl -s -b "$COOKIE_FILE" -X POST "http://127.0.0.1:${INTERNAL_XUI_PORT}${API_ADD_PATH}" \
         -H "Content-Type: application/json" \
         -d "{
             \"up\": 0,
@@ -135,8 +144,7 @@ if [ "$INBOUND_COUNT" = "0" ] || [ -z "$INBOUND_COUNT" ] || [ "$INBOUND_COUNT" =
         }" >/dev/null 2>&1 || true
 
     # Inbound 3: Trojan + WebSocket
-    echo "   ➕ Adding Trojan WebSocket Inbound (Port: 10003, Path: ${TROJAN_PATH})..."
-    curl -s -b "$COOKIE_FILE" -X POST "http://127.0.0.1:${XUI_PORT}${XUI_BASE_PATH}panel/api/inbounds/add" \
+    curl -s -b "$COOKIE_FILE" -X POST "http://127.0.0.1:${INTERNAL_XUI_PORT}${API_ADD_PATH}" \
         -H "Content-Type: application/json" \
         -d "{
             \"up\": 0,
@@ -152,13 +160,10 @@ if [ "$INBOUND_COUNT" = "0" ] || [ -z "$INBOUND_COUNT" ] || [ "$INBOUND_COUNT" =
             \"streamSettings\": \"{\\\"network\\\":\\\"ws\\\",\\\"security\\\":\\\"none\\\",\\\"wsSettings\\\":{\\\"acceptProxyProtocol\\\":false,\\\"path\\\":\\\"${TROJAN_PATH}\\\",\\\"headers\\\":{}}}\",
             \"sniffing\": \"{\\\"enabled\\\":true,\\\"destOverride\\\":[\\\"http\\\",\\\"tls\\\",\\\"quic\\\"]}\"
         }" >/dev/null 2>&1 || true
-    echo "✅ Default inbounds successfully created and loaded into Xray!"
-else
-    echo "ℹ️ Existing inbounds detected (${INBOUND_COUNT} inbounds found in database). Keeping current configuration."
+    echo "✅ Default inbounds loaded into Xray!"
 fi
 
 # 5. Build Client Configuration URLs
-# URL encode paths for query strings
 urlencode() {
     local string="${1}"
     local strlen=${#string}
@@ -180,7 +185,6 @@ TROJAN_ENC_PATH=$(urlencode "$TROJAN_PATH")
 
 VLESS_CONFIG="vless://${VLESS_UUID}@${PUBLIC_DOMAIN}:443?type=ws&security=tls&path=${VLESS_ENC_PATH}&sni=${PUBLIC_DOMAIN}#Zeus-Railway-VLESS"
 
-# Build VMess Base64 JSON
 VMESS_JSON=$(cat <<EOF
 {
   "v": "2",
@@ -212,10 +216,10 @@ export VLESS_CONFIG VMESS_CONFIG TROJAN_CONFIG PANEL_URL SUB_URL
 # 6. Generate Quick-Config HTML Page
 if [ -f /var/www/quick-config.template.html ]; then
     envsubst '$PUBLIC_DOMAIN $VLESS_CONFIG $VMESS_CONFIG $TROJAN_CONFIG $PANEL_URL $SUB_URL $VLESS_PATH $VMESS_PATH $TROJAN_PATH' \
-        < /var/www/quick-config.template.html > /var/www/quick-config.html
+        < /var/www/quick-config.template.html > /var/www/quick-config.html 2>/dev/null || true
 fi
 
-# 7. Start Nginx Reverse Proxy
+# 7. Start Nginx Ingress
 echo "🌐 Starting Nginx ingress on port ${PORT}..."
 nginx -g "daemon off;" &
 NGINX_PID=$!
@@ -243,11 +247,13 @@ echo "▶ [Trojan WebSocket]:"
 echo "${TROJAN_CONFIG}"
 echo ""
 echo "============================================================"
-echo "💡 TIP: Import into v2rayNG / Streisand / Shadowrocket / Nekoray"
-echo "============================================================"
 
 # Handle termination gracefully
 trap "echo 'Stopping services...'; kill -TERM $XUI_PID $NGINX_PID 2>/dev/null; exit 0" SIGTERM SIGINT
 
-# Keep running
-wait -n $XUI_PID $NGINX_PID
+# Wait and monitor loop
+while kill -0 "$XUI_PID" 2>/dev/null && kill -0 "$NGINX_PID" 2>/dev/null; do
+    sleep 5
+done
+
+exit 1

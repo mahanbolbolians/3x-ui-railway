@@ -1,6 +1,6 @@
 worker_processes auto;
 error_log /var/log/nginx/error.log warn;
-pid /var/run/nginx.pid;
+pid /run/nginx.pid;
 
 events {
     worker_connections 4096;
@@ -133,7 +133,7 @@ http {
         # 7. 3x-ui Subscription Endpoints (/sub/...)
         # -------------------------------------------------------------
         location /sub {
-            proxy_pass http://127.0.0.1:2053;
+            proxy_pass http://127.0.0.1:${INTERNAL_XUI_PORT};
             proxy_http_version 1.1;
             proxy_set_header Host $host;
             proxy_set_header X-Real-IP $remote_addr;
@@ -145,7 +145,7 @@ http {
         # 8. 3x-ui Web Admin Panel (All Other Requests)
         # -------------------------------------------------------------
         location / {
-            proxy_pass http://127.0.0.1:2053;
+            proxy_pass http://127.0.0.1:${INTERNAL_XUI_PORT};
             proxy_http_version 1.1;
             proxy_set_header Upgrade $http_upgrade;
             proxy_set_header Connection $connection_upgrade;
