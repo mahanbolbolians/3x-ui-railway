@@ -52,8 +52,5 @@ ENV TZ=Asia/Tehran \
 # Expose Railway container port and internal 3x-ui port
 EXPOSE 8080 2053
 
-# Volumes for persistent database and certs
-VOLUME [ "/etc/x-ui" ]
-
 # Set our custom orchestrator entrypoint
 ENTRYPOINT [ "/bin/bash", "/app/railway-entrypoint.sh" ]
